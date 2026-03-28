@@ -4,7 +4,9 @@ Small, CV-focused demo for `miRNA-mRNA` site-level interaction prediction with a
 
 ## Overview
 
-This repository implements a small RNA-aware pair classification model:
+This repository implements a compact RNA-aware classification model for `miRNA-mRNA` target-site prediction. The project is designed as a showcase-style demo: small enough to train locally, but structured enough to demonstrate dataset preparation, pairwise Transformer design, evaluation, and attention-based interpretation in one repo.
+
+Core setup:
 
 - Input: one `miRNA sequence` and one `50 nt mRNA target-site window`
 - Output: interaction probability
@@ -15,8 +17,6 @@ This repository implements a small RNA-aware pair classification model:
   - one cross-attention block
   - masked pooling
   - MLP classifier
-
-The goal is not to reproduce a large benchmark pipeline. The goal is to build a small, explainable Transformer demo that can be trained locally and displayed clearly on GitHub.
 
 ## Why This Project
 
@@ -43,12 +43,12 @@ Processed files contain only:
 
 Current main display run: `runs/third_full_train_bigger`
 
-Best validation epoch:
+Best validation checkpoint:
 
 - `epoch = 11`
 - `best val AUPRC = 0.6935`
 
-Main test metrics:
+Main held-out test metrics:
 
 - `AUPRC = 0.6961`
 - `ROC-AUC = 0.7329`
@@ -66,6 +66,12 @@ External test metrics:
 
 - `AUPRC = 0.5525`
 - `ROC-AUC = 0.5619`
+
+Interpretation:
+
+- The model learns useful in-distribution interaction signals on balanced site-level data.
+- External performance is lower, which is consistent with dataset shift across experimental sources.
+- The demo is intended to showcase model design and interpretability rather than claim state-of-the-art benchmark performance.
 
 ## What we are not doing in v1
 
@@ -103,6 +109,8 @@ External test metrics:
 ### Attention Example
 
 ![Attention heatmap](assets/attention_example.png)
+
+The heatmap above shows average cross-attention from miRNA tokens to target-site positions on a held-out positive sample. The highlighted band marks the miRNA seed region.
 
 ## Train
 

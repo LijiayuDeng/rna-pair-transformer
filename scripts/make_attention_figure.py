@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
+from matplotlib.patches import Rectangle
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -12,6 +13,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.data import RNAPairDataset, decode_sequence, load_processed_dataframe
 from src.model import RNAPairTransformer, RNAPairTransformerConfig
+
+BACKGROUND = "#fffaf2"
+PANEL = "#fffdf8"
+TEXT = "#1f2937"
+MUTED = "#6b7280"
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,17 +84,67 @@ def plot_attention(
     attention = outputs["attention_weights"][0].mean(dim=0).cpu().numpy()
     attention = attention[:mirna_len, :target_len]
 
-    fig, ax = plt.subplots(figsize=(max(8, target_len * 0.18), max(4, mirna_len * 0.3)))
-    image = ax.imshow(attention, aspect="auto", cmap="viridis")
-    ax.set_title(f"Cross-attention Heatmap (label={int(row['label'])}, prob={probability:.3f})")
-    ax.set_xlabel("Target-site position")
-    ax.set_ylabel("miRNA position")
+    fig, ax = plt.subplots(figsize=(max(9, target_len * 0.22), max(4.8, mirna_len * 0.36)))
+    fig.patch.set_facecolor(BACKGROUND)
+    ax.set_facecolor(PANEL)
+    image = ax.imshow(attention, aspect="auto", cmap="magma")
+    ax.set_title("Cross-attention Heatmap", fontsize=14, fontweight="bold", color=TEXT)
+    ax.set_xlabel("Target-site positions", color=TEXT)
+    ax.set_ylabel("miRNA positions", color=TEXT)
     ax.set_xticks(range(target_len))
-    ax.set_xticklabels(list(target_seq), fontsize=8)
+    ax.set_xticklabels(list(target_seq), fontsize=8, color=TEXT)
     ax.set_yticks(range(mirna_len))
-    ax.set_yticklabels(list(mirna_seq), fontsize=9)
+    ax.set_yticklabels(list(mirna_seq), fontsize=9, color=TEXT)
+    ax.tick_params(axis="x", colors=TEXT)
+    ax.tick_params(axis="y", colors=TEXT)
+    for spine in ax.spines.values():
+        spine.set_color("#9ca3af")
     plt.setp(ax.get_xticklabels(), rotation=90)
-    fig.colorbar(image, ax=ax, fraction=0.025, pad=0.02, label="Attention weight")
+
+    seed_start = 1
+    seed_end = min(8, mirna_len)
+    if seed_end > seed_start:
+        ax.add_patch(
+            Rectangle(
+                (-0.5, seed_start - 0.5),
+                target_len,
+                seed_end - seed_start,
+                fill=False,
+                edgecolor="#facc15",
+                linewidth=1.8,
+                linestyle="--",
+            )
+        )
+        ax.text(
+            target_len - 0.5,
+            seed_start - 0.65,
+            "seed region",
+            ha="right",
+            va="bottom",
+            fontsize=9,
+            color="#f59e0b",
+            fontweight="bold",
+        )
+
+    fig.text(
+        0.5,
+        0.955,
+        f"Positive held-out sample  |  predicted probability = {probability:.3f}",
+        ha="center",
+        va="top",
+        fontsize=10,
+        color=MUTED,
+    )
+    fig.text(
+        0.5,
+        0.925,
+        "Average over attention heads; brighter regions indicate stronger target focus",
+        ha="center",
+        va="top",
+        fontsize=9,
+        color=MUTED,
+    )
+    fig.colorbar(image, ax=ax, fraction=0.028, pad=0.02, label="Attention weight")
     fig.tight_layout()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=200, bbox_inches="tight")

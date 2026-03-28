@@ -4,6 +4,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
+BACKGROUND = "#fffaf2"
+PANEL = "#fffdf8"
+TEXT = "#111827"
+MUTED = "#6b7280"
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate a simple model diagram for the RNA Pair Transformer.")
@@ -29,7 +34,7 @@ def add_box(ax, x: float, y: float, w: float, h: float, label: str, facecolor: s
         ha="center",
         va="center",
         fontsize=11,
-        color="#111827",
+        color=TEXT,
         wrap=True,
     )
 
@@ -56,8 +61,19 @@ def main() -> None:
     ax.set_ylim(0, 6)
     ax.axis("off")
 
-    fig.patch.set_facecolor("#fffdf8")
-    ax.set_facecolor("#fffdf8")
+    fig.patch.set_facecolor(BACKGROUND)
+    ax.set_facecolor(BACKGROUND)
+
+    backdrop = FancyBboxPatch(
+        (0.3, 0.4),
+        11.3,
+        5.0,
+        boxstyle="round,pad=0.02,rounding_size=0.08",
+        linewidth=1.2,
+        edgecolor="#e5e7eb",
+        facecolor=PANEL,
+    )
+    ax.add_patch(backdrop)
 
     add_box(ax, 0.6, 3.6, 1.7, 0.9, "miRNA\n30 tokens", "#dbeafe")
     add_box(ax, 0.6, 1.4, 1.7, 0.9, "Target site\n50 tokens", "#fde68a")
@@ -89,7 +105,7 @@ def main() -> None:
         va="center",
         fontsize=17,
         fontweight="bold",
-        color="#111827",
+        color=TEXT,
     )
     ax.text(
         6.0,
@@ -98,7 +114,7 @@ def main() -> None:
         ha="center",
         va="center",
         fontsize=11,
-        color="#4b5563",
+        color=MUTED,
     )
     ax.text(
         10.7,
