@@ -88,6 +88,10 @@ External test metrics:
 
 ## Figures
 
+### Model Diagram
+
+![Model diagram](assets/model_diagram.png)
+
 ### Training Curves
 
 ![Training curves](assets/training_curves.png)
@@ -161,4 +165,11 @@ python scripts/make_attention_figure.py \
   --run-dir runs/third_full_train_bigger \
   --split-path data/processed/test.tsv \
   --output-path assets/attention_example.png
+```
+
+Model diagram:
+
+```bash
+python scripts/make_model_diagram.py \
+  --output-path assets/model_diagram.png
 ```
