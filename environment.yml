@@ -1,0 +1,22 @@
+name: rna-pair-transformer
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch>=2.4
+  - pytorch-cuda=12.1
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyterlab
+  - ipykernel
+  - pyyaml
+  - tqdm
+  - rich
+  - pip:
+      - einops
