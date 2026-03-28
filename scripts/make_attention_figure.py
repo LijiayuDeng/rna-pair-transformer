@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 from matplotlib.patches import Rectangle
@@ -94,21 +95,25 @@ def plot_attention(
     ax.set_xticks(range(target_len))
     ax.set_xticklabels(list(target_seq), fontsize=8, color=TEXT)
     ax.set_yticks(range(mirna_len))
-    ax.set_yticklabels(list(mirna_seq), fontsize=9, color=TEXT)
+    ax.set_yticklabels([f"{idx + 1} {base}" for idx, base in enumerate(mirna_seq)], fontsize=9, color=TEXT)
     ax.tick_params(axis="x", colors=TEXT)
     ax.tick_params(axis="y", colors=TEXT)
+    ax.set_xticks(np.arange(-0.5, target_len, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, mirna_len, 1), minor=True)
+    ax.grid(which="minor", color="#f8fafc", linestyle="-", linewidth=0.55, alpha=0.45)
+    ax.tick_params(which="minor", bottom=False, left=False)
     for spine in ax.spines.values():
         spine.set_color("#9ca3af")
     plt.setp(ax.get_xticklabels(), rotation=90)
 
-    seed_start = 1
-    seed_end = min(8, mirna_len)
-    if seed_end > seed_start:
+    seed_start_idx = 1
+    seed_end_idx = min(7, mirna_len - 1)
+    if seed_end_idx >= seed_start_idx:
         ax.add_patch(
             Rectangle(
-                (-0.5, seed_start - 0.5),
+                (-0.5, seed_start_idx - 0.5),
                 target_len,
-                seed_end - seed_start,
+                seed_end_idx - seed_start_idx + 1,
                 fill=False,
                 edgecolor="#facc15",
                 linewidth=1.8,
@@ -117,8 +122,8 @@ def plot_attention(
         )
         ax.text(
             target_len - 0.5,
-            seed_start - 0.65,
-            "seed region",
+            seed_start_idx - 0.65,
+            f"Seed region ({seed_start_idx + 1}-{seed_end_idx + 1})",
             ha="right",
             va="bottom",
             fontsize=9,

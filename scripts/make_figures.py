@@ -83,6 +83,7 @@ def style_axes(ax: plt.Axes) -> None:
 def plot_training_curves(history_df: pd.DataFrame, output_path: Path) -> None:
     best_epoch = int(history_df.loc[history_df["val_auprc"].idxmax(), "epoch"])
     best_val_auprc = float(history_df["val_auprc"].max())
+    epoch_ticks = history_df["epoch"].astype(int).tolist()
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.2))
     fig.patch.set_facecolor(BACKGROUND)
@@ -112,6 +113,7 @@ def plot_training_curves(history_df: pd.DataFrame, output_path: Path) -> None:
     axes[0].set_title("Loss During Training", fontsize=13, fontweight="bold")
     axes[0].set_xlabel("Epoch")
     axes[0].set_ylabel("Loss")
+    axes[0].set_xticks(epoch_ticks)
     axes[0].legend(frameon=False, loc="upper right")
 
     axes[1].plot(
@@ -151,6 +153,7 @@ def plot_training_curves(history_df: pd.DataFrame, output_path: Path) -> None:
     axes[1].set_title("AUPRC During Training", fontsize=13, fontweight="bold")
     axes[1].set_xlabel("Epoch")
     axes[1].set_ylabel("AUPRC")
+    axes[1].set_xticks(epoch_ticks)
     axes[1].legend(frameon=False, loc="lower right")
 
     fig.suptitle(
