@@ -161,6 +161,83 @@ def run_epoch(
     return metrics
 
 
+def collect_predictions(
+    model: RNAPairTransformer,
+    dataloader: DataLoader,
+    device: torch.device,
+    max_batches: int | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    model.eval()
+    all_labels: list[np.ndarray] = []
+    all_probabilities: list[np.ndarray] = []
+
+    with torch.no_grad():
+        for batch_index, batch in enumerate(dataloader):
+            if max_batches is not None and batch_index >= max_batches:
+                break
+
+            batch = move_batch_to_device(batch, device)
+            outputs = model(
+                target_ids=batch["target_ids"],
+                target_mask=batch["target_mask"],
+                mirna_ids=batch["mirna_ids"],
+                mirna_mask=batch["mirna_mask"],
+            )
+            all_labels.append(batch["label"].detach().cpu().numpy())
+            all_probabilities.append(outputs["probabilities"].detach().cpu().numpy())
+
+    labels_array = np.concatenate(all_labels).astype(int)
+    probabilities_array = np.concatenate(all_probabilities)
+    return labels_array, probabilities_array
+
+
+def compute_metrics_at_threshold(
+    labels: np.ndarray,
+    probabilities: np.ndarray,
+    threshold: float,
+) -> dict[str, float]:
+    predictions = (probabilities >= threshold).astype(int)
+    has_both_classes = np.unique(labels).size > 1
+
+    metrics = {
+        "threshold": threshold,
+        "accuracy": accuracy_score(labels, predictions),
+        "f1": f1_score(labels, predictions),
+        "mcc": matthews_corrcoef(labels, predictions),
+        "auprc": average_precision_score(labels, probabilities),
+    }
+    if has_both_classes:
+        metrics["roc_auc"] = roc_auc_score(labels, probabilities)
+    else:
+        metrics["roc_auc"] = float("nan")
+    metrics["positive_rate"] = float(predictions.mean())
+    return metrics
+
+
+def find_best_threshold(
+    labels: np.ndarray,
+    probabilities: np.ndarray,
+    objective: str = "mcc",
+    threshold_min: float = 0.1,
+    threshold_max: float = 0.9,
+    num_thresholds: int = 161,
+) -> tuple[float, dict[str, float]]:
+    thresholds = np.linspace(threshold_min, threshold_max, num_thresholds)
+    best_threshold = 0.5
+    best_metrics = compute_metrics_at_threshold(labels, probabilities, best_threshold)
+    best_score = best_metrics[objective]
+
+    for threshold in thresholds:
+        metrics = compute_metrics_at_threshold(labels, probabilities, float(threshold))
+        score = metrics[objective]
+        if score > best_score:
+            best_threshold = float(threshold)
+            best_metrics = metrics
+            best_score = score
+
+    return best_threshold, best_metrics
+
+
 def evaluate_splits(
     model: RNAPairTransformer,
     dataloaders: dict[str, DataLoader],
@@ -186,7 +263,7 @@ def evaluate_splits(
 
 
 def format_metrics(metrics: dict[str, float]) -> str:
-    ordered_keys = ["loss", "auprc", "roc_auc", "f1", "mcc", "accuracy"]
+    ordered_keys = ["threshold", "loss", "auprc", "roc_auc", "f1", "mcc", "accuracy", "positive_rate"]
     parts = [f"{key}={metrics[key]:.4f}" for key in ordered_keys if key in metrics]
     return " ".join(parts)
 
@@ -289,9 +366,40 @@ def main() -> None:
         max_eval_batches=args.max_eval_batches,
     )
 
+    val_labels, val_probabilities = collect_predictions(
+        model=model,
+        dataloader=dataloaders["val"],
+        device=device,
+        max_batches=args.max_eval_batches,
+    )
+    selected_threshold, tuned_val_metrics = find_best_threshold(
+        labels=val_labels,
+        probabilities=val_probabilities,
+        objective="mcc",
+    )
+    tuned_results = {
+        "val": tuned_val_metrics,
+    }
+    for split_name in ["test", "external_test"]:
+        labels, probabilities = collect_predictions(
+            model=model,
+            dataloader=dataloaders[split_name],
+            device=device,
+            max_batches=args.max_eval_batches,
+        )
+        tuned_results[split_name] = compute_metrics_at_threshold(
+            labels=labels,
+            probabilities=probabilities,
+            threshold=selected_threshold,
+        )
+
     print(f"best_epoch={best_epoch} best_val_auprc={best_val_auprc:.4f}")
     print(f"test[{format_metrics(final_results['test'])}]")
     print(f"external_test[{format_metrics(final_results['external_test'])}]")
+    print(f"selected_threshold={selected_threshold:.4f} objective=mcc")
+    print(f"tuned_val[{format_metrics(tuned_results['val'])}]")
+    print(f"tuned_test[{format_metrics(tuned_results['test'])}]")
+    print(f"tuned_external_test[{format_metrics(tuned_results['external_test'])}]")
 
     history_df = pd.DataFrame(history)
     history_df.to_csv(run_dir / "history.csv", index=False)
@@ -300,9 +408,13 @@ def main() -> None:
         {
             "best_epoch": best_epoch,
             "best_val_auprc": best_val_auprc,
+            "selected_threshold": selected_threshold,
             "val": final_results["val"],
             "test": final_results["test"],
             "external_test": final_results["external_test"],
+            "tuned_val": tuned_results["val"],
+            "tuned_test": tuned_results["test"],
+            "tuned_external_test": tuned_results["external_test"],
         },
     )
     save_json(

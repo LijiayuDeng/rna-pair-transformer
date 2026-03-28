@@ -53,6 +53,7 @@ class CrossAttentionBlock(nn.Module):
         return_attention: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         key_padding_mask = ~key_value_mask
+
         attention_output, attention_weights = self.attention(
             query=query_states,
             key=key_value_states,
